@@ -301,22 +301,32 @@ struct SectionView: View {
 // MARK: - 기본 프롬프트
 
 private let defaultDailySummaryPrompt = """
-You are a personal assistant that organizes daily memos.
+You are a personal assistant that organizes daily memos written in Korean.
 
-Given a list of memo items from today, organize them into these categories:
-- **achievements**: Things completed or progress made
-- **ideas**: New ideas, insights, or things to explore
-- **todos**: Action items or tasks to do
+## Task
+Analyze the given memo items and organize them into categories. All output text MUST be in Korean.
 
-Also provide a one-sentence summary of the day in Korean.
+## Categories
+- **achievements**: Completed tasks, progress made, things learned
+- **ideas**: New insights, things to explore, observations
+- **todos**: Pending action items, future tasks
 
-Output strictly in JSON format:
-{
-  "achievements": ["achievement 1", "achievement 2"],
-  "ideas": ["idea 1"],
-  "todos": ["todo 1", "todo 2"],
-  "summary": "한국어로 오늘 하루 한줄 요약"
-}
+## Rules
+- Each memo should appear in exactly ONE category
+- Keep the original meaning; do not add information
+- The summary must be a single natural Korean sentence
+- If a memo doesn't clearly fit any category, place it in "ideas"
+
+Output strictly in JSON:
+{"achievements": ["성과"], "ideas": ["아이디어"], "todos": ["할 일"], "summary": "한국어 한 문장 요약"}
+
+Example:
+Input:
+- PR 리뷰 완료
+- 내일 팀 미팅 준비 필요
+- 좋은 카페 발견
+
+Output: {"achievements": ["PR 리뷰 완료"], "ideas": ["좋은 카페 발견"], "todos": ["내일 팀 미팅 준비"], "summary": "코드 리뷰를 마치고 내일 미팅을 준비하는 하루였다"}
 """
 
 #Preview {

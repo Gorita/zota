@@ -6,6 +6,7 @@ struct CaptureView: View {
     @State private var content: String = ""
     @State private var selectedTags: Set<String> = []
     @State private var saveResult: SaveResult? = nil
+    @State private var isSuggestingTags = false
     @FocusState private var titleFocused: Bool
 
     var body: some View {
@@ -28,9 +29,25 @@ struct CaptureView: View {
 
             // 태그 선택
             VStack(alignment: .leading, spacing: 8) {
-                Text("태그")
-                    .font(.caption)
+                HStack {
+                    Text("태그")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button(action: suggestTags) {
+                        if isSuggestingTags {
+                            ProgressView()
+                                .controlSize(.mini)
+                        } else {
+                            Image(systemName: "sparkles")
+                                .font(.caption)
+                        }
+                    }
+                    .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                    .help("AI 태그 제안")
+                    .disabled(isSuggestingTags || (title.isEmpty && content.isEmpty))
+                }
 
                 FlowLayout(spacing: 6) {
                     ForEach(appSettings.availableTags, id: \.self) { tag in
@@ -73,6 +90,57 @@ struct CaptureView: View {
             selectedTags.remove(tag)
         } else {
             selectedTags.insert(tag)
+        }
+    }
+
+    private func suggestTags() {
+        guard let vaultURL = appSettings.vaultURL else { return }
+        guard !title.isEmpty || !content.isEmpty else { return }
+
+        isSuggestingTags = true
+
+        Task {
+            do {
+                let promptService = PromptService(vaultPath: vaultURL)
+                let systemPrompt: String
+                do {
+                    systemPrompt = try promptService.loadPrompt(named: "Tagger")
+                } catch {
+                    systemPrompt = defaultTaggerPrompt
+                }
+
+                let userPrompt = TagSuggestionResult.buildPrompt(
+                    title: title,
+                    content: content,
+                    availableTags: appSettings.availableTags
+                )
+
+                guard let baseURL = URL(string: appSettings.ollamaURL) else { return }
+
+                let ollamaService = OllamaService(
+                    baseURL: baseURL,
+                    model: appSettings.ollamaModel
+                )
+
+                let result = try await ollamaService.generate(
+                    prompt: userPrompt,
+                    system: systemPrompt,
+                    responseType: TagSuggestionResult.self,
+                    timeout: 30
+                )
+
+                await MainActor.run {
+                    let validTags = result.filteredTags(allowedTags: appSettings.availableTags)
+                    for tag in validTags {
+                        selectedTags.insert(tag)
+                    }
+                    isSuggestingTags = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSuggestingTags = false
+                }
+            }
         }
     }
 
@@ -194,6 +262,19 @@ struct FlowLayout: Layout {
         return (positions, CGSize(width: maxX, height: currentY + rowHeight))
     }
 }
+
+// MARK: - 기본 Tagger 프롬프트
+
+private let defaultTaggerPrompt = """
+You are a tag suggestion assistant. Given a note's title and content, suggest the most relevant tags from the provided allowed tag list.
+
+Rules:
+- Select 1-3 tags that best describe the note
+- Only return tags from the allowed list
+- If no tags fit, return empty array
+
+Output strictly in JSON: {"tags": ["태그1", "태그2"]}
+"""
 
 #Preview {
     CaptureView()
