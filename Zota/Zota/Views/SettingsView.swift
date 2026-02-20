@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var appSettings: AppSettings
-    @State private var ollamaConnected: Bool? = nil
+    @State private var ollamaStatus: OllamaService.HealthStatus? = nil
     @State private var isCheckingConnection = false
 
     var body: some View {
@@ -68,18 +68,22 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var connectionStatusView: some View {
-        switch ollamaConnected {
+        switch ollamaStatus {
         case .none:
             Label("확인 중...", systemImage: "circle.dotted")
                 .foregroundStyle(.secondary)
                 .font(.caption)
-        case .some(true):
+        case .some(.ready):
             Label("연결됨", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
                 .font(.caption)
-        case .some(false):
-            Label("연결 실패", systemImage: "xmark.circle.fill")
+        case .some(.serverUnavailable):
+            Label("서버 연결 실패", systemImage: "xmark.circle.fill")
                 .foregroundStyle(.red)
+                .font(.caption)
+        case .some(.modelNotFound(let name)):
+            Label("모델 '\(name)' 없음", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
                 .font(.caption)
         }
     }
@@ -98,16 +102,16 @@ struct SettingsView: View {
 
     private func checkOllamaConnection() {
         isCheckingConnection = true
-        ollamaConnected = nil
+        ollamaStatus = nil
 
         Task {
             let service = OllamaService(
                 baseURL: URL(string: appSettings.ollamaURL)!,
                 model: appSettings.ollamaModel
             )
-            let connected = await service.healthCheck()
+            let status = await service.healthCheck()
             await MainActor.run {
-                ollamaConnected = connected
+                ollamaStatus = status
                 isCheckingConnection = false
             }
         }

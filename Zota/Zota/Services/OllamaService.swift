@@ -39,16 +39,31 @@ class OllamaService {
         self.model = model
     }
 
-    /// Ollama 서버 연결 상태 확인
-    func healthCheck() async -> Bool {
+    /// Ollama 서버 연결 + 모델 존재 여부 확인
+    func healthCheck() async -> HealthStatus {
         do {
             var request = URLRequest(url: baseURL)
             request.timeoutInterval = 5
             let (_, response) = try await URLSession.shared.data(for: request)
-            return (response as? HTTPURLResponse)?.statusCode == 200
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                return .serverUnavailable
+            }
         } catch {
-            return false
+            return .serverUnavailable
         }
+
+        let models = await listModels()
+        if models.contains(where: { $0 == model || $0.hasPrefix("\(model):") }) {
+            return .ready
+        } else {
+            return .modelNotFound(model)
+        }
+    }
+
+    enum HealthStatus: Equatable {
+        case ready
+        case serverUnavailable
+        case modelNotFound(String)
     }
 
     /// Ollama에 프롬프트를 보내고 JSON 응답을 받는다

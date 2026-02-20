@@ -3,22 +3,22 @@ import XCTest
 
 final class OllamaServiceTests: XCTestCase {
 
-    func testHealthCheckReturnsTrue_whenServerRunning() async {
-        // 실제 Ollama가 실행 중일 때만 통과하는 통합 테스트
+    func testHealthCheck_whenServerRunning() async {
+        // 실제 Ollama가 실행 중일 때만 의미 있는 통합 테스트
         let service = OllamaService(
             baseURL: URL(string: "http://localhost:11434")!
         )
         let result = await service.healthCheck()
-        // Ollama가 실행 중이 아닐 수 있으므로 결과만 확인
+        // Ollama가 실행 중이 아닐 수 있으므로 타입만 확인
         XCTAssertNotNil(result)
     }
 
-    func testHealthCheckReturnsFalse_whenServerNotRunning() async {
+    func testHealthCheck_returnsServerUnavailable_whenServerNotRunning() async {
         let service = OllamaService(
             baseURL: URL(string: "http://localhost:99999")!
         )
         let result = await service.healthCheck()
-        XCTAssertFalse(result)
+        XCTAssertEqual(result, .serverUnavailable)
     }
 
     func testGenerateThrows_whenServerNotRunning() async {

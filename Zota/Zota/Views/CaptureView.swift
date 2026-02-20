@@ -139,6 +139,7 @@ struct CaptureView: View {
             } catch {
                 await MainActor.run {
                     isSuggestingTags = false
+                    saveResult = SaveResult(isSuccess: false, message: "태그 제안 실패: \(error.localizedDescription)")
                 }
             }
         }
