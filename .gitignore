@@ -18,6 +18,11 @@ xcuserdata/
 *.swp
 *~
 
+# Internal docs
+CLAUDE.md
+설계문서.md
+진행상황.md
+
 # Swift Package Manager
 .build/
 Packages/
